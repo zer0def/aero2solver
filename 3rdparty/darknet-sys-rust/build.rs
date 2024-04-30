@@ -173,9 +173,11 @@ where
     copy(path, LIBRARY_PATH.as_path())?;
     let path = LIBRARY_PATH.as_path();
 
+    let suffix = if is_dynamic() { "so" } else { "a" };  // what about winblows?
+
     let mut config = cmake::Config::new(path);
     config
-        .uses_cxx11()
+        .uses_cxx11().configure_arg("--trace").configure_arg("--trace-expand").very_verbose(true)
         .define("BUILD_SHARED_LIBS", if is_dynamic() { "ON" } else { "OFF" })
         .define("ENABLE_CUDA", if is_cuda_enabled() { "ON" } else { "OFF" })
         .define(
@@ -189,13 +191,17 @@ where
         .define(
             "CUDA_ARCHITECTURES",
             env::var_os(CUDA_ARCHITECTURES_ENV).unwrap_or_else(|| "Auto".into()),
-        );
+        ).define("CMAKE_FIND_ROOT_PATH_MODE_INCLUDE", "BOTH");
     if is_openmp_enabled() {
         // https://cmake.org/cmake/help/latest/variable/CMAKE_REQUIRE_FIND_PACKAGE_PackageName.html
         config.define("CMAKE_REQUIRE_FIND_PACKAGE_OpenMP", "ON");
     } else {
         // https://cmake.org/cmake/help/latest/variable/CMAKE_DISABLE_FIND_PACKAGE_PackageName.html
         config.define("CMAKE_DISABLE_FIND_PACKAGE_OpenMP", "ON");
+    }
+    if env::var("CARGO_CFG_TARGET_OS").unwrap() == "android" {
+        config.define("CMAKE_SYSTEM_NAME", "Android");
+        config.define("CMAKE_SYSTEM_PROCESSOR", env::var("ANDROID_TARGET_CPU").unwrap());
     }
     let dst = config.build();
 
@@ -208,14 +214,33 @@ where
 
     // link dependent libraries if linking to static library
     if !is_dynamic() {
-        if cfg!(target_os = "macos") {
+        if env::var("CARGO_CFG_TARGET_OS").unwrap() == "android" {
+            println!(
+                "cargo:rustc-link-search={}/toolchains/llvm/prebuilt/linux-{}/sysroot/usr/lib/{}-linux-{}/{}",
+                env::var("ANDROID_NDK").unwrap_or_else(|_| "/opt/android-sdk/ndk/27.1.12297006".to_string()),
+                env::consts::ARCH,
+                env::var("CARGO_CFG_TARGET_ARCH").unwrap(),
+                env::var("TARGET").unwrap().split("-").last().unwrap(),
+                env::var("ANDROID_ABI").unwrap_or_else(|_| "21".to_string())
+            );
+            println!(
+                "cargo:rustc-link-search={}/toolchains/llvm/prebuilt/linux-{}/sysroot/usr/lib/{}-linux-{}",
+                env::var("ANDROID_NDK").unwrap_or_else(|_| "/opt/android-sdk/ndk/27.1.12297006".to_string()),
+                env::consts::ARCH,
+                env::var("CARGO_CFG_TARGET_ARCH").unwrap(),
+                env::var("TARGET").unwrap().split("-").last().unwrap()
+            );
+        } else {
+            println!("cargo:rustc-link-search={}/usr/lib", if env::var("CARGO_CFG_TARGET_ARCH").unwrap().eq(env::consts::ARCH) { String::new() } else { format!("/{}", env::var("TARGET").unwrap()) });
+        }
+        if cfg!(target_os = "macos") || env::var("CARGO_CFG_TARGET_OS").unwrap() == "android" {
             if is_openmp_enabled() {
                 println!("cargo:rustc-link-lib=omp");
             }
             println!("cargo:rustc-link-lib=c++");
         } else {
             if is_openmp_enabled() {
-                println!("cargo:rustc-link-lib=gomp");
+                println!("cargo:rustc-link-lib={}=gomp", link);
             }
             println!("cargo:rustc-link-lib=stdc++");
         }

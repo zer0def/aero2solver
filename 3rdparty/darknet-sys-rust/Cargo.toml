@@ -15,7 +15,7 @@ include = ["src/**/*", "LICENSE", "README.md", "darknet/*", "build.rs", "!**/*.j
 
 [build-dependencies]
 anyhow = "1.0"
-bindgen = "0.65"
+bindgen = { path = "../rust-bindgen/bindgen", version = "0.65", default-features = false, features = ["static"] }
 cmake = "0.1"
 lazy_static = "1.4"
 

@@ -43,7 +43,7 @@ fn get_library_name(path: &Path) -> Option<String> {
 
 /// Gets the LLVM static libraries required to link to `libclang`.
 fn get_llvm_libraries() -> Vec<String> {
-    common::run_llvm_config(&["--libs"])
+    common::run_llvm_config(&["--libs", "--link-static"])
         .unwrap()
         .split_whitespace()
         .filter_map(|p| {
@@ -129,11 +129,11 @@ pub fn link() {
     // Specify required system libraries.
     // MSVC doesn't need this, as it tracks dependencies inside `.lib` files.
     if cfg!(target_os = "freebsd") {
-        println!("cargo:rustc-flags=-l ffi -l ncursesw -l c++ -l z");
+        println!("cargo:rustc-flags=-l ffi -l ncursesw -l c++ -l z -l zstd");
     } else if cfg!(any(target_os = "haiku", target_os = "linux")) {
-        println!("cargo:rustc-flags=-l ffi -l ncursesw -l stdc++ -l z");
+        println!("cargo:rustc-flags=-l ffi -l ncursesw -l stdc++ -l z -l zstd");
     } else if cfg!(target_os = "macos") {
-        println!("cargo:rustc-flags=-l ffi -l ncurses -l c++ -l z");
+        println!("cargo:rustc-flags=-l ffi -l ncurses -l c++ -l z -l zstd");
     }
 
     cep.discard();
