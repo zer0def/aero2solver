@@ -1,0 +1,15 @@
+[workspace]
+members = [
+    "bindgen",
+    "bindgen-cli",
+    "bindgen-integration",
+    "bindgen-tests",
+    "bindgen-tests/tests/quickchecking",
+    "bindgen-tests/tests/expectations",
+]
+
+default-members = [
+    "bindgen",
+    "bindgen-cli",
+    "bindgen-tests",
+]
